@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h2>Welcome {{ current_user.email }}</h2>
+  <form method="POST">
+    {{ form.hidden_tag() }}
+    <div class="mb-3">{{ form.content.label }}{{ form.content(class="form-control") }}</div>
+    {{ form.submit(class="btn btn-primary") }}
+  </form>
+  <hr>
+  <h4>Your Notes</h4>
+  {% for note in notes %}
+    <div class="alert alert-secondary">{{ note.content }}</div>
+  {% endfor %}
+{% endblock %}

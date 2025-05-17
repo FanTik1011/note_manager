@@ -1,0 +1,7 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h2>All Notes (Admin)</h2>
+  {% for note in notes %}
+    <div class="alert alert-light"><strong>{{ note.author.email }}:</strong> {{ note.content }}</div>
+  {% endfor %}
+{% endblock %}
