@@ -1,4 +1,4 @@
-Flask
-Flask-SQLAlchemy
-Flask-Login
+flask
+flask_sqlalchemy
+flask_login
 gunicorn
