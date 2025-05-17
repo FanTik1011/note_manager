@@ -2,6 +2,9 @@ import os
 from flask import Flask, render_template, request, redirect, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev_secret")
@@ -86,3 +89,6 @@ def create_admin():
     db.session.add(admin)
     db.session.commit()
     print("Admin created.")
+
+if __name__ == '__main__':
+    app.run(debug=True)
