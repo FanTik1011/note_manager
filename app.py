@@ -1,94 +1,99 @@
+from flask import Flask, render_template, request, redirect, url_for, session, g
+import sqlite3
 import os
-from flask import Flask, render_template, request, redirect, session
-from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
-from dotenv import load_dotenv
-
-load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev_secret")
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", "sqlite:///notes.db")
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
+app.secret_key = 'your_secret_key'  # заміни на випадковий рядок
+DATABASE = 'users.db'
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(150), unique=True, nullable=False)
-    password_hash = db.Column(db.String(256), nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
+# --- Ініціалізація бази даних ---
+def init_db():
+    with sqlite3.connect(DATABASE) as conn:
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password TEXT NOT NULL
+            )
+        ''')
+        conn.commit()
 
-class Note(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    content = db.Column(db.Text, nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    user = db.relationship('User', backref=db.backref('notes', lazy=True))
+# --- Отримати з'єднання з БД ---
+def get_db():
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect(DATABASE)
+    return db
 
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
+
+# --- Головна сторінка ---
 @app.route('/')
-def index():
-    return redirect('/dashboard') if 'user_id' in session else redirect('/login')
+def home():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    return render_template('home.html', username=session['username'])
 
+# --- Реєстрація ---
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        hashed = generate_password_hash(password)
-        user = User(username=username, password_hash=hashed)
-        db.session.add(user)
-        db.session.commit()
-        return redirect('/login')
+        try:
+            db = get_db()
+            db.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, password))
+            db.commit()
+            return redirect(url_for('login'))
+        except sqlite3.IntegrityError:
+            return "Ім’я користувача вже зайняте!"
     return render_template('register.html')
 
+# --- Логін ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        user = User.query.filter_by(username=request.form['username']).first()
-        if user and check_password_hash(user.password_hash, request.form['password']):
-            session['user_id'] = user.id
-            session['is_admin'] = user.is_admin
-            return redirect('/dashboard')
-        return 'Invalid credentials'
+        username = request.form['username']
+        password = request.form['password']
+
+        # Якщо адмін
+        if username == 'vovk1011' and password == 'wertyalnuu':
+            session['username'] = username
+            session['is_admin'] = True
+            return redirect(url_for('admin'))
+
+        # Якщо звичайний користувач
+        db = get_db()
+        user = db.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password)).fetchone()
+        if user:
+            session['username'] = username
+            session['is_admin'] = False
+            return redirect(url_for('home'))
+        else:
+            return "Невірний логін або пароль"
     return render_template('login.html')
 
-@app.route('/dashboard', methods=['GET', 'POST'])
-def dashboard():
-    if 'user_id' not in session:
-        return redirect('/login')
+# --- Адмін-панель ---
+@app.route('/admin')
+def admin():
+    if 'username' in session and session.get('is_admin'):
+        db = get_db()
+        users = db.execute("SELECT id, username FROM users").fetchall()
+        return render_template('admin.html', users=users)
+    return redirect(url_for('login'))
 
-    if request.method == 'POST':
-        content = request.form['content']
-        note = Note(content=content, user_id=session['user_id'])
-        db.session.add(note)
-        db.session.commit()
-
-    if session.get('is_admin'):
-        notes = Note.query.all()
-    else:
-        notes = Note.query.filter_by(user_id=session['user_id']).all()
-
-    return render_template('dashboard.html', notes=notes, is_admin=session.get('is_admin'))
-
+# --- Вихід ---
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect('/login')
+    return redirect(url_for('login'))
 
-@app.cli.command('init-db')
-def init_db():
-    db.create_all()
-    print("Database initialized.")
-
-@app.cli.command('create-admin')
-def create_admin():
-    from getpass import getpass
-    username = input("Admin username: ")
-    password = getpass("Admin password: ")
-    hashed = generate_password_hash(password)
-    admin = User(username=username, password_hash=hashed, is_admin=True)
-    db.session.add(admin)
-    db.session.commit()
-    print("Admin created.")
-
+# --- Запуск ---
 if __name__ == '__main__':
+    init_db()
     app.run(debug=True)
