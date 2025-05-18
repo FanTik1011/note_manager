@@ -3,10 +3,9 @@ import sqlite3
 import os
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # заміни на випадковий рядок
+app.secret_key = 'your_secret_key'
 DATABASE = 'users.db'
 
-# --- Ініціалізація бази даних ---
 def init_db():
     with sqlite3.connect(DATABASE) as conn:
         c = conn.cursor()
@@ -19,7 +18,6 @@ def init_db():
         ''')
         conn.commit()
 
-# --- Отримати з'єднання з БД ---
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -32,14 +30,12 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
-# --- Головна сторінка ---
 @app.route('/')
 def home():
     if 'username' not in session:
         return redirect(url_for('login'))
     return render_template('home.html', username=session['username'])
 
-# --- Реєстрація ---
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -54,20 +50,17 @@ def register():
             return "Ім’я користувача вже зайняте!"
     return render_template('register.html')
 
-# --- Логін ---
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
 
-        # Якщо адмін
         if username == 'vovk1011' and password == 'wertyalnuu':
             session['username'] = username
             session['is_admin'] = True
             return redirect(url_for('admin'))
 
-        # Якщо звичайний користувач
         db = get_db()
         user = db.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password)).fetchone()
         if user:
@@ -78,7 +71,6 @@ def login():
             return "Невірний логін або пароль"
     return render_template('login.html')
 
-# --- Адмін-панель ---
 @app.route('/admin')
 def admin():
     if 'username' in session and session.get('is_admin'):
@@ -87,13 +79,11 @@ def admin():
         return render_template('admin.html', users=users)
     return redirect(url_for('login'))
 
-# --- Вихід ---
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# --- Запуск ---
 if __name__ == '__main__':
     init_db()
     app.run(debug=True)

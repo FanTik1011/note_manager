@@ -1,15 +1,12 @@
 <!DOCTYPE html>
-<html lang="uk">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Головна | mouse</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>mouse | Home</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
 </head>
-<body class="bg-light">
-<div class="container mt-5">
+<body class="container py-5">
     <h2>Привіт, {{ username }}!</h2>
-    <p>Ви увійшли в систему mouse.</p>
+    <p>Ви увійшли до системи "mouse".</p>
     <a href="{{ url_for('logout') }}" class="btn btn-danger">Вийти</a>
-</div>
 </body>
 </html>
